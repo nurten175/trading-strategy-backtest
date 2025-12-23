@@ -14,3 +14,13 @@ through backtesting with Python.
 - Revenue growth and margin analysis
 - Moving average crossover trading strategy
 - Performance evaluation using returns
+
+## Tools
+- Python
+- Pandas
+- Matplotlib
+
+## Results
+The analysis demonstrates how combining fundamental indicators
+with a simple technical trading strategy can support
+data-driven decision making.
