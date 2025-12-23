@@ -25,19 +25,13 @@ The analysis demonstrates how combining fundamental indicators
 with a simple technical trading strategy can support
 data-driven decision making.
 
-## How to Run
+<h2>How to Run</h2>
 
-1. Install required libraries:
-   ```bash
-   pip install pandas numpy matplotlib
-   ```
+<p><strong>1. Install required libraries:</strong></p>
+<pre><code>pip install pandas numpy matplotlib</code></pre>
 
-2. Run the script:
-   ```bash
-   python backtest.py
-   ```
+<p><strong>2. Run the script:</strong></p>
+<pre><code>python backtest.py</code></pre>
 
-3. When prompted, enter the full path to your CSV file (for example):
-   ```
-   /Users/yourname/Desktop/aapl_raw.csv
-   ```
+<p><strong>3. When prompted, enter the full path to your CSV file:</strong></p>
+<pre><code>/Users/yourname/Desktop/aapl_raw.csv</code></pre>
