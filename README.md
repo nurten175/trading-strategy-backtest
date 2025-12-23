@@ -9,3 +9,8 @@ through backtesting with Python.
 - Historical price data
 - Financial statement data
 - Publicly available sources
+
+  ## Methodology
+- Revenue growth and margin analysis
+- Moving average crossover trading strategy
+- Performance evaluation using returns
