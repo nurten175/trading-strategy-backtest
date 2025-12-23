@@ -1,9 +1,18 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Mon Dec 22 16:55:27 2025
+Financial Analysis & Backtesting
 
-@author: nurtenerust
+This script performs financial analysis and backtests a technical trading strategy
+on historical price data.
+
+How to run:
+    python backtest.py
+
+Requirements:
+    pandas, numpy, matplotlib
+
+Notes:
+- Uses publicly available data (not included in this repo).
+- Update the data input path in the CONFIG section below.
 """
 
 # =========================
