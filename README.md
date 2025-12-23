@@ -1,2 +1,6 @@
-# trading-strategy-backtest
-Financial analysis and basic trading strategy backtesting using Python.
+# Financial Analysis & Trading Strategy Project
+
+## Project Overview
+This project focuses on analyzing financial performance using
+fundamental metrics and evaluating a simple trading strategy
+through backtesting with Python.
