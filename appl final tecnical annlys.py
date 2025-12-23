@@ -30,7 +30,13 @@ pd.set_option("display.width", 1000)
 # -------------------------
 # 0) DATA (CSV'den oku)
 # -------------------------
-path = "/Users/nurtenerust/Desktop/aapl_raw.csv"
+from pathlib import Path
+
+csv_path = input("Enter full path to CSV file: ").strip()
+csv_path = Path(csv_path)
+
+historical_df = pd.read_csv(csv_path, sep=";")
+historical_df.columns = [c.strip() for c in historical_df.columns]
 
 historical_df = pd.read_csv(path, sep=";")
 historical_df.columns = [c.strip() for c in historical_df.columns]
