@@ -12,13 +12,15 @@ Requirements:
 
 Notes:
 - Uses publicly available data (not included in this repo).
-- Update the data input path in the CONFIG section below.
+- When prompted, enter the full path to your CSV file.
 """
 
 # =========================
 # AAPL - Teknik Analiz (CSV)
 # MA + BB + MACD + RSI + VWMA
 # =========================
+
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -30,26 +32,24 @@ pd.set_option("display.width", 1000)
 # -------------------------
 # 0) DATA (CSV'den oku)
 # -------------------------
-from pathlib import Path
+csv_path = Path(input("Enter full path to CSV file: ").strip())
 
-csv_path = input("Enter full path to CSV file: ").strip()
-csv_path = Path(csv_path)
+if not csv_path.exists():
+    raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
 historical_df = pd.read_csv(csv_path, sep=";")
-historical_df.columns = [c.strip() for c in historical_df.columns]
-
-historical_df = pd.read_csv(path, sep=";")
 historical_df.columns = [c.strip() for c in historical_df.columns]
 
 historical_df["Date"] = pd.to_datetime(historical_df["Date"], errors="coerce", dayfirst=True)
 historical_df["Price"] = pd.to_numeric(
     historical_df["Price"].astype(str).str.replace(",", "", regex=False),
-    errors="coerce"
+    errors="coerce",
 )
 
 # Volume kolonu (Vol. vs)
 vol_candidates = [c for c in historical_df.columns if "vol" in c.lower()]
 vol_col = vol_candidates[0] if len(vol_candidates) > 0 else None
+
 
 def parse_volume(x):
     if pd.isna(x):
@@ -59,15 +59,19 @@ def parse_volume(x):
         return np.nan
     mult = 1
     if s.endswith("K"):
-        mult = 1_000; s = s[:-1]
+        mult = 1_000
+        s = s[:-1]
     elif s.endswith("M"):
-        mult = 1_000_000; s = s[:-1]
+        mult = 1_000_000
+        s = s[:-1]
     elif s.endswith("B"):
-        mult = 1_000_000_000; s = s[:-1]
+        mult = 1_000_000_000
+        s = s[:-1]
     try:
         return float(s) * mult
-    except:
+    except Exception:
         return np.nan
+
 
 if vol_col is not None:
     historical_df[vol_col] = historical_df[vol_col].apply(parse_volume)
@@ -75,20 +79,20 @@ if vol_col is not None:
 historical_df = historical_df.dropna(subset=["Date", "Price"]).sort_values("Date").set_index("Date")
 
 # (Senin mantığın) verinin yarısı
-historical_df = historical_df.iloc[:len(historical_df)//2].copy()
+historical_df = historical_df.iloc[: len(historical_df) // 2].copy()
 close_historical = historical_df["Price"]
-
 
 # -------------------------
 # 1) MOVING AVERAGE (MA)
 # -------------------------
-rolling_app5  = close_historical.rolling(window=5).mean()
+rolling_app5 = close_historical.rolling(window=5).mean()
 rolling_app14 = close_historical.rolling(window=14).mean()
 rolling_app21 = close_historical.rolling(window=21).mean()
 
 MAs = pd.concat([close_historical, rolling_app5, rolling_app14, rolling_app21], axis=1)
 MAs.columns = ["close", "short", "mid", "long"]
 MAs.dropna(inplace=True)
+
 
 def buy_sell_MA(MAs, opt=50):
     buy_sell = []
@@ -148,10 +152,11 @@ def buy_sell_MA(MAs, opt=50):
 
     return buy_signal, sell_signal, PL
 
-MAs["BUY_MA"]  = pd.Series(buy_sell_MA(MAs)[0], index=MAs.index)
-MAs["SELL_MA"] = pd.Series(buy_sell_MA(MAs)[1], index=MAs.index)
-print("MA PL:", buy_sell_MA(MAs)[2])
 
+ma_buy, ma_sell, ma_pl = buy_sell_MA(MAs)
+MAs["BUY_MA"] = pd.Series(ma_buy, index=MAs.index)
+MAs["SELL_MA"] = pd.Series(ma_sell, index=MAs.index)
+print("MA PL:", ma_pl)
 
 # -------------------------
 # 2) BOLLINGER BANDS (BB)
@@ -163,6 +168,7 @@ BBs["STD"] = BBs["Close"].rolling(window=20).std()
 BBs["upper"] = BBs["SMA"] + 2 * BBs["STD"]
 BBs["lower"] = BBs["SMA"] - 2 * BBs["STD"]
 BBs.dropna(inplace=True)
+
 
 def buy_sell_BB(data):
     buy_sell = []
@@ -215,10 +221,11 @@ def buy_sell_BB(data):
 
     return buy_signal, sell_signal, PL
 
-BBs["BUY_BB"]  = pd.Series(buy_sell_BB(BBs)[0], index=BBs.index)
-BBs["SELL_BB"] = pd.Series(buy_sell_BB(BBs)[1], index=BBs.index)
-print("BB PL:", buy_sell_BB(BBs)[2])
 
+bb_buy, bb_sell, bb_pl = buy_sell_BB(BBs)
+BBs["BUY_BB"] = pd.Series(bb_buy, index=BBs.index)
+BBs["SELL_BB"] = pd.Series(bb_sell, index=BBs.index)
+print("BB PL:", bb_pl)
 
 # -------------------------
 # 3) MACD
@@ -226,9 +233,10 @@ print("BB PL:", buy_sell_BB(BBs)[2])
 MDs = pd.DataFrame(index=MAs.index)
 MDs["close"] = MAs["close"]
 MDs["short"] = MDs["close"].ewm(span=12, adjust=False).mean()
-MDs["long"]  = MDs["close"].ewm(span=26, adjust=False).mean()
-MDs["MACD"]  = MDs["short"] - MDs["long"]
+MDs["long"] = MDs["close"].ewm(span=26, adjust=False).mean()
+MDs["MACD"] = MDs["short"] - MDs["long"]
 MDs["signal"] = MDs["MACD"].ewm(span=9, adjust=False).mean()
+
 
 def buy_sell_MD(data, opt=50):
     buy_sell = []
@@ -286,10 +294,11 @@ def buy_sell_MD(data, opt=50):
 
     return buy_signal, sell_signal, PL
 
-MDs["BUY_MACD"]  = pd.Series(buy_sell_MD(MDs)[0], index=MDs.index)
-MDs["SELL_MACD"] = pd.Series(buy_sell_MD(MDs)[1], index=MDs.index)
-print("MACD PL:", buy_sell_MD(MDs)[2])
 
+md_buy, md_sell, md_pl = buy_sell_MD(MDs)
+MDs["BUY_MACD"] = pd.Series(md_buy, index=MDs.index)
+MDs["SELL_MACD"] = pd.Series(md_sell, index=MDs.index)
+print("MACD PL:", md_pl)
 
 # -------------------------
 # 4) RSI (DÜZELTİLMİŞ)
@@ -306,6 +315,7 @@ RSs["Avg_Loss"] = RSs["Loss"].rolling(window=14).mean()
 rs = RSs["Avg_Gain"] / RSs["Avg_Loss"]
 RSs["rsi"] = 100 - (100 / (1 + rs))
 RSs.dropna(inplace=True)
+
 
 def buy_sell_RS(RSs, opt_low=30, opt_high=70):
     buy_sell = []
@@ -358,10 +368,11 @@ def buy_sell_RS(RSs, opt_low=30, opt_high=70):
 
     return buy_signal, sell_signal, PL
 
-RSs["BUY_RSI"]  = pd.Series(buy_sell_RS(RSs)[0], index=RSs.index)
-RSs["SELL_RSI"] = pd.Series(buy_sell_RS(RSs)[1], index=RSs.index)
-print("RSI PL:", buy_sell_RS(RSs)[2])
 
+rs_buy, rs_sell, rs_pl = buy_sell_RS(RSs)
+RSs["BUY_RSI"] = pd.Series(rs_buy, index=RSs.index)
+RSs["SELL_RSI"] = pd.Series(rs_sell, index=RSs.index)
+print("RSI PL:", rs_pl)
 
 # -------------------------
 # 5) VWMA (Volume varsa)
@@ -435,37 +446,30 @@ if vol_col is not None and vol_col in historical_df.columns:
 
         return buy_signal, sell_signal, PL
 
-    VWs["BUY_VW"]  = pd.Series(buy_sell_VW(VWs)[0], index=VWs.index)
-    VWs["SELL_VW"] = pd.Series(buy_sell_VW(VWs)[1], index=VWs.index)
-    print("VWMA PL:", buy_sell_VW(VWs)[2])
+    vw_buy, vw_sell, vw_pl = buy_sell_VW(VWs)
+    VWs["BUY_VW"] = pd.Series(vw_buy, index=VWs.index)
+    VWs["SELL_VW"] = pd.Series(vw_sell, index=VWs.index)
+    print("VWMA PL:", vw_pl)
 
 # -------------------------
 # 6) DECISIONS (senin merge tarzın)
 # -------------------------
-decisions = pd.merge(BBs[["BUY_BB", "SELL_BB"]], MAs[["BUY_MA", "SELL_MA"]],
-                     left_index=True, right_index=True, how="inner")
-decisions = pd.merge(decisions, MDs[["BUY_MACD", "SELL_MACD"]],
-                     left_index=True, right_index=True, how="inner")
-decisions = pd.merge(decisions, RSs[["BUY_RSI", "SELL_RSI"]],
-                     left_index=True, right_index=True, how="inner")
+decisions = pd.merge(BBs[["BUY_BB", "SELL_BB"]], MAs[["BUY_MA", "SELL_MA"]], left_index=True, right_index=True, how="inner")
+decisions = pd.merge(decisions, MDs[["BUY_MACD", "SELL_MACD"]], left_index=True, right_index=True, how="inner")
+decisions = pd.merge(decisions, RSs[["BUY_RSI", "SELL_RSI"]], left_index=True, right_index=True, how="inner")
 
 if VWs is not None:
-    decisions = pd.merge(decisions, VWs[["BUY_VW", "SELL_VW"]],
-                         left_index=True, right_index=True, how="inner")
+    decisions = pd.merge(decisions, VWs[["BUY_VW", "SELL_VW"]], left_index=True, right_index=True, how="inner")
 
 print(decisions.dropna(thresh=1).head(30))
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 
 # =========================
 # BACKTEST HELPERS
 # =========================
-
 def _to_bool_signal(series):
     """NaN -> False, sayı varsa True"""
     return series.notna()
+
 
 def make_strategy_signals(decisions):
     """
@@ -473,10 +477,10 @@ def make_strategy_signals(decisions):
       BUY_MA, SELL_MA, BUY_BB, SELL_BB (en az bunlar)
     Çıktı: dict of (buy_bool_series, sell_bool_series)
     """
-    buy_ma  = _to_bool_signal(decisions["BUY_MA"])
+    buy_ma = _to_bool_signal(decisions["BUY_MA"])
     sell_ma = _to_bool_signal(decisions["SELL_MA"])
 
-    buy_bb  = _to_bool_signal(decisions["BUY_BB"])
+    buy_bb = _to_bool_signal(decisions["BUY_BB"])
     sell_bb = _to_bool_signal(decisions["SELL_BB"])
 
     # Strateji-1: sadece MA
@@ -491,6 +495,7 @@ def make_strategy_signals(decisions):
         "MA_only": (S1_buy, S1_sell),
         "MA_and_BB": (S2_buy, S2_sell),
     }
+
 
 def backtest_long_only(close, buy_sig, sell_sig, initial_cash=10000.0, fee_rate=0.0):
     """
@@ -509,53 +514,42 @@ def backtest_long_only(close, buy_sig, sell_sig, initial_cash=10000.0, fee_rate=
     equity = []
     trades = []  # (date, type, price, shares, cash_after)
 
-    entry_price = None
     for dt in close.index:
         price = float(close.loc[dt])
 
         # önce SELL kontrol (aynı gün BUY+SELL gelirse önce SELL yapmak daha güvenli)
         if sell_sig.loc[dt] and shares > 0:
-            # sat
             gross = shares * price
             fee = gross * fee_rate
             cash = gross - fee
             trades.append((dt, "SELL", price, shares, cash))
             shares = 0.0
-            entry_price = None
 
         # sonra BUY
         if buy_sig.loc[dt] and shares == 0:
-            # al (tüm nakitle)
             fee = cash * fee_rate
             buy_cash = cash - fee
             shares = buy_cash / price
             cash = 0.0
             trades.append((dt, "BUY", price, shares, cash))
-            entry_price = price
 
         equity.append(cash + shares * price)
 
     equity = pd.Series(equity, index=close.index, name="equity")
 
-    # metrikler
     total_return = (equity.iloc[-1] / initial_cash) - 1.0
-
-    # buy&hold
     bh_return = (close.iloc[-1] / close.iloc[0]) - 1.0
 
-    # max drawdown
     running_max = equity.cummax()
     drawdown = (equity / running_max) - 1.0
     max_dd = float(drawdown.min())
 
-    # trade stats: win rate (BUY->SELL çiftleri)
     trades_df = pd.DataFrame(trades, columns=["date", "type", "price", "shares", "cash_after"])
     wins = 0
     losses = 0
     pnl_list = []
 
     if not trades_df.empty:
-        # BUY ve SELL'i sırayla eşleştir
         open_buy = None
         for _, row in trades_df.iterrows():
             if row["type"] == "BUY":
@@ -589,13 +583,9 @@ def backtest_long_only(close, buy_sig, sell_sig, initial_cash=10000.0, fee_rate=
 
 
 # =========================
-# RUN (decisions + close gerekli)
+# RUN
 # =========================
-
-# close serisi: MA tablosundan al (senin kodda MAs['close'] var)
 close = MAs["close"].copy()
-
-# decisions: senin merge ettiğin tablo (BUY_MA/SELL_MA/BUY_BB/SELL_BB kolonları olmalı)
 strategies = make_strategy_signals(decisions)
 
 results = {}
@@ -603,11 +593,9 @@ for name, (b, s) in strategies.items():
     eq, tr, summ = backtest_long_only(close, b, s, initial_cash=10000.0, fee_rate=0.0)
     results[name] = (eq, tr, summ)
 
-# özet tablo
 summary_table = pd.DataFrame({k: v[2] for k, v in results.items()}).T
 print(summary_table)
 
-# equity curve grafiği
 plt.figure(figsize=(12, 5))
 for name, (eq, _, _) in results.items():
     plt.plot(eq.index, eq.values, label=name)
